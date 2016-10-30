@@ -1,24 +1,24 @@
 <?php
 /**
  * @file
- * Views exposure of http:BL for Drupal. Provides easy monitoring
+ * Views exposure of http:BL for Backdrop. Provides easy monitoring
  * of IPs greylisted or blacklisted through http:BL and linking to honeypot
  * to review why these IPs have been blocked.
  *
  * For this includes only
  * @author Bryan Lewellen (bryrock)
- * @link http://drupal.org/project/httpbl
+ * @link http://backdropcms.org/project/httpbl
  * @link http://httpbl.org/
  *
- * For http:BL for Drupal module
+ * For http:BL for Backdrop module
  * @author Mark Janssen (praseodym)
- * @link http://drupal.org/project/httpbl
+ * @link http://backdropcms.org/project/httpbl
  * @link http://httpbl.org/
  */
 
 /**
  *
- * Version 7.x-dev
+ * Version 1.x-dev
  * Contact: Bryan Lewellen (bryrock) (http://drupal.org/user/346823)
  *
  * Feel free to improve this module, but please contact the authors with any
@@ -108,7 +108,7 @@ function httpbl_views_data() {
 function httpbl_views_handlers() {
   return array(
     'info' => array(
-      'path' => drupal_get_path('module', 'httpbl') . '/includes/views/handlers',
+      'path' => backdrop_get_path('module', 'httpbl') . '/includes/views/handlers',
     ),
     'handlers' => array(
 

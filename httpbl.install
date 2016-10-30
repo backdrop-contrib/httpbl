@@ -45,8 +45,52 @@ function httpbl_schema() {
  * Implementation of hook_uninstall().
  */
 function httpbl_uninstall() {
-  drupal_uninstall_schema('httpbl');
-  db_delete('variable')
-    ->condition('name', 'httpbl_%%', 'LIKE')
-    ->execute();
+  backdrop_uninstall_schema('httpbl');
+}
+
+/**
+ * Move book settings from variables to config.
+ */
+function httpbl_update_1000() {
+  // Migrate variables to config.
+  $config = config('httpbl.settings');
+  $config->set('accesskey', update_variable_get('httpbl_accesskey', null));
+  $config->set('check', update_variable_get('httpbl_check', 0));
+  $config->set('footer', update_variable_get('httpbl_footer', false));
+  $config->set('link', update_variable_get('httpbl_link', null));
+  $config->set('word', update_variable_get('httpbl_word', 'randomness'));
+  $config->set('log', update_variable_get('httpbl_log', 1));
+  $config->set('stats', update_variable_get('httpbl_stats', true));
+  $config->set('cache', update_variable_get('httpbl_cache', 1));
+  $config->set('black_threshold', update_variable_get('httpbl_black_threshold', 50));
+  $config->set('message_black', update_variable_get('httpbl_message_black', t('Sorry, your IP address (%ip) has been blacklisted by <a href="%ipurl">http:BL</a>.%honeypot')));
+  $config->set('grey_threshold', update_variable_get('httpbl_grey_threshold', 1));
+  $config->set('message_grey', update_variable_get('httpbl_message_grey', t('<p>We\'re sorry!<br /> We <strong>cannot</strong> let you access our website at this time.</p> <p>Your IP address (%ip) has been identified as a <em>possible</em> source of suspicious, robotic traffic and has been greylisted by <a href="%ipurl">Project Honeypot</a>.</p><p>If you are an actual human visitor who can read simple instructions,<br />you may try getting whitelisted on <a href="%whitelisturl">%whitelisturl</a>.</p>%honeypot')));
+  $config->set('safe_offset', update_variable_get('httpbl_safe_offset', 10800));
+  $config->set('greylist_offset', update_variable_get('httpbl_greylist_offset', 86400));
+  $config->set('blacklist_offest', update_variable_get('httpbl_blacklist_offset', 31536000));
+  $config->set('stat_comment', update_variable_get('httpbl_stat_comment', 0));
+  $config->set('stat_black', update_variable_get('httpbl_stat_black', 0));
+  $config->set('stat_grey', update_variable_get('httpbl_stat_grey', 0));
+  $config->save();
+
+  // Delete variables.
+  update_variable_del('httpbl_accesskey');
+  update_variable_del('httpbl_check');
+  update_variable_del('httpbl_footer');
+  update_variable_del('httpbl_link');
+  update_variable_del('httpbl_word');
+  update_variable_del('httpbl_log');
+  update_variable_del('httpbl_stats');
+  update_variable_del('httpbl_cache');
+  update_variable_del('httpbl_black_threshold');
+  update_variable_del('httpbl_message_black');
+  update_variable_del('httpbl_grey_threshold');
+  update_variable_del('httpbl_message_grey');
+  update_variable_del('httpbl_safe_offset');
+  update_variable_del('httpbl_greylist_offset');
+  update_variable_del('httpbl_blacklist_offset');
+  update_variable_del('httpbl_stat_comment');
+  update_variable_del('httpbl_stat_black');
+  update_variable_del('httpbl_stat_grey');
 }

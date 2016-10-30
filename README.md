@@ -1,24 +1,9 @@
-Read Me (README.txt)
----------------------------------------------------------
-
- *
- * Implementation of http:BL for Drupal. It provides IP-based
- * blacklisting through http:BL and allows linking to a honeypot.
- *
- * @author Mark Janssen (praseodym)
- * @link http://drupal.org/project/httpbl
- * @link http://httpbl.org/
- *
- **
- * Version 7.x
- *
- * Drupal 7 port + additional settings and Views support.
- * Contact: Bryan Lewellen (bryrock) (http://drupal.org/user/346823)
- *
- * Additional code support by David Norman (deekayen)
- *
+Http:BL
+=======
+Provides IP-based blacklisting through http:BL and allows linking to a honeypot by using Project Honeypot (http://www.projecthoneypot.org/). 
 
 Key Features:
+-------------
 
  * Project Honeypot Blacklist lookups for visitor IPs
  * Blocking of current and future requests from blacklisted IPs
@@ -48,9 +33,8 @@ Http:BL can also be configured to lookup IPs only for commenters when comments a
 Http:BL can also place hidden Honeypot links in page footers.  These make it possible for you to participate and "give back" to Project Honeypot, by catching newer nuisance IPs that may not yet be ranked as threats in Project Honeypot profiles.  They find these links irresistible,  and "clicking" these links reports them and their ill-intent.  
 
   
- *
- ** Some Notes About Testing **
- *
+Some Notes About Testing
+------------------------
  
 Because this module works so quietly in the background, it may need some help to gain your trust.  That's why I included the 3 levels of logging and the Views pages, to help you see the results of what it does.  Otherwise, unless you have direct access to your database tables, it's difficult to tell if it's really blocking suspicious visitors or not.
 
@@ -75,4 +59,13 @@ However, this brings up an interesting point that's relevant to considering how 
 
 Bryrock
 
- 
+Maintainers
+-----------
+
+Maintainers of Drupal 7 version:
+
+* Mark Janssen (https://www.drupal.org/u/praseodym)
+* Bryan Lewellen (https://www.drupal.org/u/bryrock)
+* David Norman (https://www.drupal.org/u/deekayen)
+
+Ported to Backdrop CMS by Herb v/d Dool (https://github.com/herbdool).

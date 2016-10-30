@@ -1,0 +1,166 @@
+{
+    "_config_name": "views.view.httpbl_cleared_hosts",
+    "name": "httpbl_cleared_hosts",
+    "description": "Cleared Visitors via Honeypot.org.  This requires caching to be enabled at admin >> config >> people >> httpbl.",
+    "tag": "http:BL",
+    "disabled": false,
+    "base_table": "httpbl",
+    "human_name": "http:BL Cleared Hosts",
+    "core": 0,
+    "display": {
+        "default": {
+            "display_title": "Defaults",
+            "display_plugin": "default",
+            "display_options": {
+                "query": {
+                    "type": "views_query",
+                    "options": {
+                        "query_comment": false
+                    }
+                },
+                "title": "Honeypot Cleared Hosts",
+                "use_more_always": false,
+                "access": {
+                    "type": "perm",
+                    "perm": "access site reports"
+                },
+                "cache": {
+                    "type": "none"
+                },
+                "exposed_form": {
+                    "type": "basic"
+                },
+                "pager": {
+                    "type": "full",
+                    "options": {
+                        "items_per_page": "25",
+                        "offset": "0",
+                        "id": "0"
+                    }
+                },
+                "style_plugin": "table",
+                "style_options": {
+                    "columns": {
+                        "nothing": "nothing",
+                        "hostname": "hostname",
+                        "status": "status",
+                        "expire": "expire"
+                    },
+                    "default": "-1",
+                    "info": {
+                        "nothing": {
+                            "align": "",
+                            "separator": ""
+                        },
+                        "hostname": {
+                            "sortable": 0,
+                            "default_sort_order": "asc",
+                            "align": "",
+                            "separator": ""
+                        },
+                        "status": {
+                            "sortable": 0,
+                            "default_sort_order": "asc",
+                            "align": "",
+                            "separator": ""
+                        },
+                        "expire": {
+                            "sortable": 0,
+                            "default_sort_order": "asc",
+                            "align": "",
+                            "separator": ""
+                        }
+                    }
+                },
+                "empty": {
+                    "text": {
+                        "id": "text",
+                        "table": "views",
+                        "field": "area",
+                        "empty": true,
+                        "content": "No cleared IPs at this time.",
+                        "format": "plain_text"
+                    }
+                },
+                "fields": {
+                    "hostname": {
+                        "id": "hostname",
+                        "table": "httpbl",
+                        "field": "hostname",
+                        "alter": {
+                            "make_link": true,
+                            "path": "http://www.projecthoneypot.org/search_ip.php?ip=[hostname]"
+                        },
+                        "hide_alter_empty": false
+                    },
+                    "status": {
+                        "id": "status",
+                        "table": "httpbl",
+                        "field": "status",
+                        "hide_alter_empty": false
+                    },
+                    "expire": {
+                        "id": "expire",
+                        "table": "httpbl",
+                        "field": "expire"
+                    }
+                },
+                "sorts": {
+                    "expire": {
+                        "id": "expire",
+                        "table": "httpbl",
+                        "field": "expire"
+                    }
+                },
+                "filters": {
+                    "status": {
+                        "id": "status",
+                        "table": "httpbl",
+                        "field": "status",
+                        "operator": "<=",
+                        "value": {
+                            "value": "0"
+                        },
+                        "expose": {
+                            "operator": false
+                        }
+                    }
+                }
+            }
+        },
+        "page_1": {
+            "display_title": "Page",
+            "display_plugin": "page",
+            "display_options": {
+                "query": {
+                    "type": "views_query",
+                    "options": []
+                },
+                "defaults": {
+                    "hide_admin_links": false,
+                    "header": false
+                },
+                "header": {
+                    "text": {
+                        "id": "text",
+                        "table": "views",
+                        "field": "area",
+                        "empty": true,
+                        "content": "IP addresses checked and cleared from suspicious activity per Project Honeypot.\r\n      \t\t\r\n      \t\tStatus of 0 = No known suspicious activity\r\n      ",
+                        "format": "plain_text"
+                    }
+                },
+                "path": "admin/reports/cleared-hosts",
+                "menu": {
+                    "type": "normal",
+                    "title": "http:BL Cleared Hosts",
+                    "description": "Visitors cleared via Project Honeypot",
+                    "weight": "0",
+                    "name": "management",
+                    "context": 0,
+                    "context_only_inline": 0
+                }
+            }
+        }
+    }
+}
