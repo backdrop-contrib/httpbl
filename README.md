@@ -32,6 +32,21 @@ Http:BL can also be configured to lookup IPs only for commenters when comments a
 
 Http:BL can also place hidden Honeypot links in page footers.  These make it possible for you to participate and "give back" to Project Honeypot, by catching newer nuisance IPs that may not yet be ranked as threats in Project Honeypot profiles.  They find these links irresistible,  and "clicking" these links reports them and their ill-intent.  
 
+License
+-------
+
+This project is GPL v2 software. See the LICENSE.txt file in this directory for complete text.
+
+Maintainers
+-----------
+
+Maintainers of Drupal 7 version:
+
+* Mark Janssen (https://www.drupal.org/u/praseodym)
+* Bryan Lewellen (https://www.drupal.org/u/bryrock)
+* David Norman (https://www.drupal.org/u/deekayen)
+
+Ported to Backdrop CMS by Herb v/d Dool (https://github.com/herbdool).
   
 Some Notes About Testing
 ------------------------
@@ -58,14 +73,3 @@ One other thing:  I've found sometimes that Project Honeypot may be down for bri
 However, this brings up an interesting point that's relevant to considering how long you choose to cache white-listed visitors.  It may be tempting to cache them for a long time so that they don't have to be re-checked as often, but it's probably best to keep them cached for shorter time periods, on the off-chance that some of them are actually bad IPs that slipped through while Project Honeypot not reporting them.
 
 Bryrock
-
-Maintainers
------------
-
-Maintainers of Drupal 7 version:
-
-* Mark Janssen (https://www.drupal.org/u/praseodym)
-* Bryan Lewellen (https://www.drupal.org/u/bryrock)
-* David Norman (https://www.drupal.org/u/deekayen)
-
-Ported to Backdrop CMS by Herb v/d Dool (https://github.com/herbdool).
