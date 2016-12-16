@@ -84,7 +84,7 @@ function httpbl_menu() {
 
 // Let's use a different menu for Backdrop 1 and place it near core IP address blocking
 
-  $items['admin/config/content/httpbl'] = array(
+  $items['admin/config/people/httpbl'] = array(
     'title' => 'Http:BL',
     'description' => 'Manage http:BL and Honey Pot settings for limiting malicious traffic.',
     'file' => 'httpbl.admin.inc',
@@ -334,7 +334,7 @@ function httpbl_requirements($phase) {
   if ($phase == 'runtime') {
     if (!$config->get('accesskey') || !$config->get('check')) {
       $requirements['httpbl'] = array(
-        'description' => t('IP blacklist lookups are currently disabled; enter your access key <a href="@settings">on the settings page</a> and enable checks to enable blacklist lookups.', array('@settings' => url('admin/config/content/httpbl'))),
+        'description' => t('IP blacklist lookups are currently disabled; enter your access key <a href="@settings">on the settings page</a> and enable checks to enable blacklist lookups.', array('@settings' => url('admin/config/people/httpbl'))),
         'severity' => REQUIREMENT_ERROR,
         'value' => t('Disabled'),
       );
@@ -787,7 +787,7 @@ function httpbl_help($path, $arg) {
       $output .= '<dd>' . t('You can set up honeypot traps (hidden links) that will report any IPs clicking them to Project Honeypot.  You give back to the project by helping to identify new and/or previously unidentified nuisance IPs that are not yet in the Project Honeypot database. Depending on your account settings (at Project Honeypot), you may receive notices letting you know that your site caught a new trouble-maker.  Stick a feather in your cap because you helped eliminate garbage not only from your site, but other\'s as well!') . '</dd>';
       return $output;
 
-    case 'admin/config/content/httpbl':
+    case 'admin/config/people/httpbl':
       return '<p>' . t('Http:BL Settings... See <a href="@blockedHosts">Honeypot Blocks</a> for a list of grey and blacklisted host IPs.', array('@blockedHosts' => url('admin/reports/blocked_hosts'))) . '</p>';
   }
 }
