@@ -94,3 +94,17 @@ function httpbl_update_1000() {
   update_variable_del('httpbl_stat_black');
   update_variable_del('httpbl_stat_grey');
 }
+
+/**
+ * Store statistics in state variables rather than config.
+ */
+function httpbl_update_1001() {
+  $config = config('httpbl.settings');
+  state_set('httpbl_stat_black', $config->get('stat_black'));
+  $config->clear('stat_black');
+  state_set('httpbl_stat_comment', $config->get('stat_comment'));
+  $config->clear('stat_comment');
+  state_set('httpbl_stat_grey', $config->get('stat_grey'));
+  $config->clear('stat_grey');
+  $config->save();
+}

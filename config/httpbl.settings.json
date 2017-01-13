@@ -14,8 +14,5 @@
     "message_grey": "<p>We're sorry!<br /> We <strong>cannot</strong> let you access our website at this time.</p> <p>Your IP address (%ip) has been identified as a <em>possible</em> source of suspicious, robotic traffic and has been greylisted by <a href=\" % ipurl \">Project Honeypot</a>.</p><p>If you are an actual human visitor who can read simple instructions,<br />you may try getting whitelisted on <a href=\" % whitelisturl \">%whitelisturl</a>.</p>%honeypot",
     "safe_offset": 10800,
     "greylist_offset": 86400,
-    "blacklist_offset": 31536000,
-    "stat_comment": 0,
-    "stat_black": 0,
-    "stat_grey": 0
+    "blacklist_offset": 31536000
 }

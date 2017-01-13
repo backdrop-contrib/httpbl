@@ -124,22 +124,22 @@ function httpbl_boot() {
       if (isset($_GET['q']) && $_GET['q'] == 'httpbl/whitelist') {
         return;
       }
- 
+
       // If IP is found in Project Honeypot at Greylist threat level
       // we notify user and offer a challenge to get white-listed (see if they are human).
-       
+
       $message = $config->get('message_grey');
     }
-    
+
      // If IP is found in Project Honeypot at Blacklist threat level
      // we notify user that they are unwelcome.
-   
+
     elseif ($result == HTTPBL_LIST_BLACK) {
       $message = $config->get('message_black');
     }
 
     // Place hidden link that spiders cannot resist
-    
+
     if ($link = $config->get('link')) {
       $word = $config->get('word');
       $link = httpbl_honeylink($link, $word);
@@ -177,11 +177,10 @@ function httpbl_comment_presave($comment) {
       $comment->status  = 0; // Force comment to unpublished status
       $comment->subject = t('(THIS COMMENT HAS BEEN HONEY-BLOCKED!)');
       $comment->comment_body[LANGUAGE_NONE][0]['value'] .= t('<strong><<<<<< This comment was blocked and unpublished because <a href="http://www.projecthoneypot.org/">Project Honeypot</a> indicates it came from a suspicious IP address.</strong>');
-      
+
       // Add to our statistics
       if ($config->get('stats')) {
-        $config->set('stat_comment', $config->get('stat_comment') + 1); // HERB: use state_set/state_get
-        $config->save();
+        state_set('httpbl_stat_comment', state_get('httpbl_stat_comment', 0) + 1);
       }
 
     }
@@ -201,7 +200,7 @@ function httpbl_check() {
     return $result;
   }
   $config = config('httpbl.settings');
-  
+
   $ip = ip_address();
   //$ip = '127.1.40.1'; // simulate greylist response for testing
   //$ip = '127.1.80.1'; // simulate blacklist response for testing
@@ -209,7 +208,7 @@ function httpbl_check() {
   // Check if user is whitelisted in any way
   if (_httpbl_whitelisted($ip)) {
     $result = HTTPBL_LIST_SAFE;
-    
+
     if ($logs = ($config->get('log') == HTTPBL_LOG_VERBOSE)) {
       watchdog('httpbl', 'This IP has been whitelisted.', array(), WATCHDOG_DEBUG, NULL);
     }
@@ -222,9 +221,9 @@ function httpbl_check() {
       watchdog('httpbl', 'Queried cache for host.  Host status is %results', array('%results' => $result ), WATCHDOG_DEBUG, NULL);
   }
  }
- 
+
  // If user not white listed and not found in Honeyblock cache, we'll do a DNS Lookup
-  if (!(is_numeric($result))) { 
+  if (!(is_numeric($result))) {
 
     if ($logs = ($config->get('log') == HTTPBL_LOG_VERBOSE)) {
       watchdog('httpbl', 'Honeypot DNS Lookup for IP %ip.', array('%ip' => $ip), WATCHDOG_DEBUG, NULL);
@@ -234,7 +233,7 @@ function httpbl_check() {
     if ($response = httpbl_dnslookup($ip)) {
 //     backdrop_set_message(t('Check DNS IP - @ip.', array('@ip' => $ip)));
       $stats = $config->get('stats');
-      
+
       // Blacklist?
       if ($response['threat'] > ($config->get('black_threshold')) && $response['type']) {
         backdrop_set_message(t('BLACKLISTED! - Extreme Honeypot Threat Level = @response.', array('@response' => $response['threat'])), 'error', FALSE);
@@ -243,8 +242,7 @@ function httpbl_check() {
           watchdog('httpbl', '%ip will be blacklisted (%response)', array('%ip' => $ip, '%response' => $response['raw']), WATCHDOG_WARNING, _httpbl_ipdata($ip));
         }
         if ($stats) {
-          $config->set('stat_black', $config->get('stat_black') + 1);
-          $config->save();
+          state_set('httpbl_stat_black', state_get('httpbl_stat_black', 0) + 1);
         }
         $result = HTTPBL_LIST_BLACK;
       }
@@ -256,14 +254,13 @@ function httpbl_check() {
             watchdog('httpbl', '%ip will be greylisted (%response)', array('%ip' => $ip, '%response' => $response['raw']), WATCHDOG_WARNING, _httpbl_ipdata($ip));
           }
         if ($stats) {
-          $config->set('stat_grey', $config->get('stat_grey') + 1);
-          $config->save();
+          state_set('httpbl_stat_grey', state_get('httpbl_stat_grey', 0) + 1);
         }
         $result = HTTPBL_LIST_GREY;
       }
       // Listed, but is safe
       else {
-      
+
         if ($logs = ($config->get('log') == HTTPBL_LOG_VERBOSE)) {
           watchdog('httpbl', 'Honeypot profile found, but no threat. Will treat as safe.', array(), WATCHDOG_DEBUG, _httpbl_ipdata($ip));
         }
@@ -287,12 +284,12 @@ function httpbl_check() {
       if ($cache) {
         _httpbl_cache_set($ip, HTTPBL_LIST_SAFE, $config->get('safe_offset'));
       }
-      
+
       if ($logs = ($config->get('log') == HTTPBL_LOG_VERBOSE)) {
         watchdog('httpbl', 'No Honeypot profile. Will treat as safe.', array(), WATCHDOG_DEBUG, _httpbl_ipdata($ip));
     }
 
-      
+
       $result = HTTPBL_LIST_SAFE;
     }
   }
@@ -343,9 +340,9 @@ function httpbl_requirements($phase) {
       }
     }
     else {
-      $stat_black = $config->get('stat_black');
-      $stat_comment = $config->get('stat_comment');
-      $stat_grey = $config->get('stat_grey');
+      $stat_black = state_get('httpbl_stat_black', 0);
+      $stat_comment = state_get('httpbl_stat_comment', 0);
+      $stat_grey = state_get('httpbl_stat_grey', 0);
 
       if (!$config->get('stats')) {
         $requirements['httpbl'] = array(
@@ -511,7 +508,7 @@ function httpbl_request_whitelist_validate($form, &$form_state) {
     if ($config->get('cache')) {
       _httpbl_cache_update($ip, HTTPBL_LIST_BLACK, $config->get('blacklist_offset'));
       $return_date = format_interval($config->get('blacklist_offset'), $granularity = 2, $langcode = NULL);
-      
+
       if ($config->get('log')) {
       watchdog('httpbl', '%ip failed session whitelist request, blacklisted for %return_date.', array('%ip' => $ip,  '%return_date' => $return_date), WATCHDOG_ALERT, $iplink);
       }
@@ -519,7 +516,7 @@ function httpbl_request_whitelist_validate($form, &$form_state) {
       exit();
     }
     else {
-    
+
       if ($config->get('log')) {
       watchdog('httpbl', '%ip failed session whitelist request.', array('%ip' => $ip), WATCHDOG_ALERT, $iplink);
       }
@@ -540,7 +537,7 @@ function httpbl_request_whitelist_submit($form, &$form_state) {
   $ip = ip_address();
   $iplink = _httpbl_ipdata($ip);
   $config = config('httpbl.settings');
-  
+
   if ($logs = ($config->get('log'))) {
     watchdog('httpbl', 'Session from %ip whitelisted. Reason for block: @reason', array('%ip' => $ip, '@reason' => check_plain($form_state['values']['reason'])), WATCHDOG_WARNING, $iplink);
   }
@@ -644,13 +641,13 @@ function _httpbl_cache_set($ip, $status, $offset = 0) {
   // Also, conditionally, ban blacklisted IPs in Backdrop blocked_ips table
 
   if ($status == HTTPBL_LIST_BLACK && $config->get('cache') == HTTPBL_CACHE_DBDRUPAL) {
-  
+
     if (_httpbl_banned_check($ip)) {
-    
+
       if ($logs = ($config->get('log'))) {
         watchdog('httpbl', 'This IP (%ip) was already banned', array('%ip' => $ip), WATCHDOG_WARNING, NULL);
       }
-      
+
       backdrop_set_message(t('IP address %ip currently banned from this site.', array('%ip' => $ip)), 'error', FALSE);
       // Note: Logically, it is theoretically impossible for the user to ever see this message because
       // they would have been banned from getting this far, but it's here for debugging purposes.  Should
@@ -660,7 +657,7 @@ function _httpbl_cache_set($ip, $status, $offset = 0) {
       db_insert('blocked_ips')
       ->fields(array('ip' => $ip))
       ->execute();
-      
+
       if ($logs = ($config->get('log'))) {
         watchdog('httpbl', 'Added IP (%ip) to site banned IPs', array('%ip' => $ip), WATCHDOG_WARNING, NULL);
       }
@@ -677,7 +674,7 @@ function _httpbl_cache_set($ip, $status, $offset = 0) {
  * Update cache table - Called when visitor fails the Whitelist test.
  */
   // If user fails Whitelist test, we blacklist them (status = 1) in the httpbl cache and also ban them in blocked_ips
- 
+
 function _httpbl_cache_update($ip, $status, $offset = 0) {
   $txn = db_transaction();
   $config = config('httpbl.settings');
@@ -692,7 +689,7 @@ function _httpbl_cache_update($ip, $status, $offset = 0) {
 
   if ($status == HTTPBL_LIST_BLACK && $config->get('cache') == HTTPBL_CACHE_DBDRUPAL) {
     if (_httpbl_banned_check($ip)) {
-    
+
       if ($logs = ($config->get('log'))) {
         watchdog('httpbl', 'This IP (%ip) was already banned', array('%ip' => $ip), WATCHDOG_WARNING, NULL);
       }
@@ -702,7 +699,7 @@ function _httpbl_cache_update($ip, $status, $offset = 0) {
       db_insert('blocked_ips')
       ->fields(array('ip' => $ip))
       ->execute();
-      
+
       if ($logs = ($config->get('log'))) {
         watchdog('httpbl', 'Banned IP (%ip).', array('%ip' => $ip), WATCHDOG_ALERT, NULL);
       }
