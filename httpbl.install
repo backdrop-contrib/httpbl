@@ -49,7 +49,7 @@ function httpbl_uninstall() {
 }
 
 /**
- * Move book settings from variables to config.
+ * Move httpbl settings from variables to config.
  */
 function httpbl_update_1000() {
   // Migrate variables to config.
