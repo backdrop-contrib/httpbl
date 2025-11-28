@@ -196,6 +196,7 @@ function httpbl_admin_settings_validate($form, &$form_state) {
     form_set_error('httpbl_link', t('You must enter a link to be able to add it to the footer.'));
   }
 
+  $errors = form_get_errors();
   if ($key) {
     // Key should be 12 lowercase alpha characters.
     // There's no unicode allowed, so we're not using backdrop_strlen().
@@ -203,7 +204,7 @@ function httpbl_admin_settings_validate($form, &$form_state) {
     if (preg_grep('/[^a-z]/', array($key)) || strlen($key) != 12) {
       form_set_error('httpbl_accesskey', t('Your access key is formatted incorrectly.'));
     }
-    elseif (!count(form_get_errors())) {
+    elseif ($errors && count($errors) < 1) {
       // Do a test lookup (with known result).
       // Not sure we are really testing a valid key?
       $lookup = httpbl_dnslookup('127.1.80.1', $key);
