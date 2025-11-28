@@ -40,13 +40,20 @@ This project is GPL v2 software. See the LICENSE.txt file in this directory for 
 Maintainers
 -----------
 
+* Herb v/d Dool (https://github.com/herbdool)
+* Seeking co-maintainers.
+
+Credit
+------
+
+Ported to Backdrop CMS by Herb v/d Dool (https://github.com/herbdool).
+
 Maintainers of Drupal 7 version:
 
 * Mark Janssen (https://www.drupal.org/u/praseodym)
 * Bryan Lewellen (https://www.drupal.org/u/bryrock)
 * David Norman (https://www.drupal.org/u/deekayen)
 
-Ported to Backdrop CMS by Herb v/d Dool (https://github.com/herbdool).
   
 Some Notes About Testing
 ------------------------
