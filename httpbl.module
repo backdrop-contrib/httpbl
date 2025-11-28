@@ -630,13 +630,19 @@ function _httpbl_whitelisted($ip) {
 function _httpbl_cache_set($ip, $status, $offset = 0) {
   // DELETE and then INSERT leads to race conditions [#723358].
   // evidence says transactions are required -- deekayen
-  $txn = db_transaction();
+  $transaction = db_transaction();
   $config = config('httpbl.settings');
 
-  db_merge('httpbl')
-    ->key(array('hostname' => $ip))
-    ->fields(array('status' => $status, 'expire' => REQUEST_TIME + $offset))
-    ->execute();
+  try {
+    db_merge('httpbl')
+      ->key(array('hostname' => $ip))
+      ->fields(array('status' => $status, 'expire' => REQUEST_TIME + $offset))
+      ->execute();
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog_exception('httpbl', $e);
+  }
 
   // Also, conditionally, ban blacklisted IPs in Backdrop blocked_ips table
 
@@ -654,9 +660,15 @@ function _httpbl_cache_set($ip, $status, $offset = 0) {
       // anyone report seeing this it would mean that banning is not occurring as it should.
     }
     else {
-      db_insert('blocked_ips')
-      ->fields(array('ip' => $ip))
-      ->execute();
+      try {
+        db_insert('blocked_ips')
+          ->fields(array('ip' => $ip))
+          ->execute();
+      }
+      catch (Exception $e) {
+        $transaction->rollback();
+        watchdog_exception('httpbl', $e);
+      }
 
       if ($logs = ($config->get('log'))) {
         watchdog('httpbl', 'Added IP (%ip) to site banned IPs', array('%ip' => $ip), WATCHDOG_WARNING, NULL);
@@ -676,16 +688,21 @@ function _httpbl_cache_set($ip, $status, $offset = 0) {
   // If user fails Whitelist test, we blacklist them (status = 1) in the httpbl cache and also ban them in blocked_ips
 
 function _httpbl_cache_update($ip, $status, $offset = 0) {
-  $txn = db_transaction();
+  $transaction = db_transaction();
   $config = config('httpbl.settings');
 
-  db_update('httpbl')
-    ->fields(array(
-      'status' => $status,
-      'expire' => REQUEST_TIME + $offset,
-    ))
-    ->condition('hostname', $ip, '=')
-    ->execute();
+  try {
+    db_update('httpbl')
+      ->fields(array(
+        'status' => $status,
+        'expire' => REQUEST_TIME + $offset,
+      ))
+      ->condition('hostname', $ip, '=')
+      ->execute();
+  } catch (Exception $e) {
+    $transaction->rollback();
+    watchdog_exception('httpbl', $e);
+  }
 
   if ($status == HTTPBL_LIST_BLACK && $config->get('cache') == HTTPBL_CACHE_DBDRUPAL) {
     if (_httpbl_banned_check($ip)) {
@@ -696,9 +713,14 @@ function _httpbl_cache_update($ip, $status, $offset = 0) {
       backdrop_set_message(t('IP address ( %ip ) currently banned from this site.', array('%ip' => $ip)), 'error', FALSE);
     }
     else {
-      db_insert('blocked_ips')
-      ->fields(array('ip' => $ip))
-      ->execute();
+      try {
+        db_insert('blocked_ips')
+          ->fields(array('ip' => $ip))
+          ->execute();
+      } catch (Exception $e) {
+        $transaction->rollback();
+        watchdog_exception('httpbl', $e);
+      }
 
       if ($logs = ($config->get('log'))) {
         watchdog('httpbl', 'Banned IP (%ip).', array('%ip' => $ip), WATCHDOG_ALERT, NULL);
