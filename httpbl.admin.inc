@@ -97,9 +97,9 @@ function httpbl_admin_settings($form, &$form_state) {
     '#type' => 'checkbox',
     '#title' => t('Enable statistics'),
     '#default_value' => $config->get('stats'),
-    '#description' => t('Whether to enable counting of positive lookups. Statistics are show on the Drupal <a href="@statusreport">Status report page</a>.', array('@statusreport' => url('admin/reports/status'))),
+    '#description' => t('Whether to enable counting of positive lookups. Statistics are show on the Backdrop <a href="@statusreport">Status report page</a>.', array('@statusreport' => url('admin/reports/status'))),
     );
-  
+
   $form['advanced']['httpbl_cache'] = array(
     '#type' => 'radios',
     '#title' => t('Results Caching'),
@@ -107,9 +107,9 @@ function httpbl_admin_settings($form, &$form_state) {
     '#options' => array(
       t('Off'),
       t('Http:BL cache'),
-      t('Http:BL cache and Drupal blocked_ips table'),
+      t('Http:BL cache and IP Address Blocking table'),
     ),
-    '#description' => t('Whether to enable database-based caching. Note that when this is disabled, IPs that fail the session whitelist test cannot be automatically banned. The Drupal Blocked_ips table allows visitors to be banned in the early stages of the bootstrap.'),
+    '#description' => t('Whether to enable database-based caching. Note that when this is disabled, IPs that fail the session whitelist test cannot be automatically banned. The <a href="@ip_blocking">IP Address Blocking module</a> allows visitors to be banned in the early stages of the bootstrap.', array('@ip_blocking' => 'https://backdropcms.org/project/ip_blocking')),
   );
 
   $blacklist_threshold_options = backdrop_map_assoc(array(50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 200, 255));
@@ -118,7 +118,7 @@ function httpbl_admin_settings($form, &$form_state) {
     '#title' => t('Blacklisting Threshhold'),
     '#default_value' => $config->get('black_threshold'),
     '#options' => $blacklist_threshold_options,
-    '#description' => t('Threshold above which a user is blacklisted.  Use this to fine-tune the Honeypot threat-levels for Black-listing. Note that threat levels at 100 or more effectively turns off Blacklisting (they are extremely rare).  If you want to stop blacklisting altogether, set this to 255.'),
+    '#description' => t('Threshold above which a user is blacklisted. Use this to fine-tune the Honeypot threat-levels for Black-listing. Note that threat levels at 100 or more effectively turns off Blacklisting (they are extremely rare). If you want to stop blacklisting altogether, set this to 255.'),
   );
 
   $form['advanced']['httpbl_message_black'] = array(
@@ -146,29 +146,29 @@ function httpbl_admin_settings($form, &$form_state) {
 
   $cache_period = backdrop_map_assoc(array(10800, 21600, 32400, 43200, 86400, 172800, 259200, 604800, 1209600, 2419200), 'format_interval');
   $form['advanced']['httpbl_safe_offset'] = array(
-    '#type' => 'select', 
-    '#title' => t('Safe Visitor Cache Expires in...'), 
-    '#default_value' => $config->get('safe_offset'), 
-    '#options' => $cache_period, 
+    '#type' => 'select',
+    '#title' => t('Safe Visitor Cache Expires in...'),
+    '#default_value' => $config->get('safe_offset'),
+    '#options' => $cache_period,
     '#description' => t('How long to keep safe or white-listed IPs in cache.'),
   );
 
   $cache_period2 = backdrop_map_assoc(array(43200, 86400, 172800, 259200, 604800, 1209600, 1814400, 2419200), 'format_interval');
   $form['advanced']['httpbl_greylist_offset'] = array(
-    '#type' => 'select', 
-    '#title' => t('Grey Listed Visitor Cache Expires in...'), 
-    '#default_value' => $config->get('greylist_offset'), 
-    '#options' => $cache_period2, 
+    '#type' => 'select',
+    '#title' => t('Grey Listed Visitor Cache Expires in...'),
+    '#default_value' => $config->get('greylist_offset'),
+    '#options' => $cache_period2,
     '#description' => t('How long to keep grey-listed IPs in cache.'),
   );
 
   $cache_period3 = backdrop_map_assoc(array(604800, 1209600, 1814400, 2419200, 7257600, 15724800, 31536000, 63072000, 94608000), 'format_interval');
   $form['advanced']['httpbl_blacklist_offset'] = array(
-    '#type' => 'select', 
-    '#title' => t('Black Listed Visitor Cache Expires in...'), 
-    '#default_value' => $config->get('blacklist_offset'), 
-    '#options' => $cache_period3, 
-    '#description' => t('How long to keep black-listed IPs in cache (and also blocked in Drupal Blocked_ips table, when applicable).'),
+    '#type' => 'select',
+    '#title' => t('Black Listed Visitor Cache Expires in...'),
+    '#default_value' => $config->get('blacklist_offset'),
+    '#options' => $cache_period3,
+    '#description' => t('How long to keep black-listed IPs in cache (and also blocked in IP Address Blocking module\'s table, when applicable).'),
   );
 
   // Add a submit button
@@ -186,7 +186,6 @@ function httpbl_admin_settings($form, &$form_state) {
  */
 function httpbl_admin_settings_validate($form, &$form_state) {
   $key = $form_state['values']['httpbl_accesskey'];
- 
 
   if ($form_state['values']['httpbl_check'] && !$key) {
     form_set_error('httpbl_accesskey', t('You must enter an access key to enable blacklist checks.'));

@@ -26,6 +26,9 @@
  *
  */
 
+/**
+ * Implements hook_views_data().
+ */
 function httpbl_views_data() {
   // Thanks to Lullabot's clear and concise API docs at
   // http://api.lullabot.com/group/views_hooks
@@ -42,7 +45,7 @@ function httpbl_views_data() {
       'help' => t("Cache table of IP addresses successfully blocked by HttpBL (and ProjectHoneypot.org)."),
       'weight' => -10,
   );
-  
+
   // Next, describe each of the individual fields in this table to Views. For
   // each field, you may define what field, sort, argument, and/or filter
   // handlers it supports. This will determine where in the Views interface you
