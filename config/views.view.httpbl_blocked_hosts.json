@@ -1,0 +1,166 @@
+{
+  "_config_name": "views.view.httpbl_blocked_hosts",
+  "name": "httpbl_blocked_hosts",
+  "description": "Blocked Visitors via Honeypot.org.  This requires caching to be enabled at admin >> config >> people >> httpbl.",
+  "tag": "http:BL",
+  "disabled": false,
+  "base_table": "httpbl",
+  "human_name": "http:BL Blocked Hosts",
+  "core": 0,
+  "display": {
+    "default": {
+      "display_title": "Defaults",
+      "display_plugin": "default",
+      "display_options": {
+        "query": {
+          "type": "views_query",
+          "options": {
+            "query_comment": false
+          }
+        },
+        "title": "http:BL Blocked Hosts",
+        "use_more_always": false,
+        "access": {
+          "type": "perm",
+          "perm": "access site reports"
+        },
+        "cache": {
+          "type": "none"
+        },
+        "exposed_form": {
+          "type": "basic"
+        },
+        "pager": {
+          "type": "full",
+          "options": {
+            "items_per_page": "25",
+            "offset": "0",
+            "id": "0"
+          }
+        },
+        "style_plugin": "table",
+        "style_options": {
+          "columns": {
+            "counter": "counter",
+            "hostname": "hostname",
+            "status": "status",
+            "expire": "expire"
+          },
+          "default": "-1",
+          "info": {
+            "counter": {
+              "align": "",
+              "separator": ""
+            },
+            "hostname": {
+              "sortable": 0,
+              "default_sort_order": "asc",
+              "align": "",
+              "separator": ""
+            },
+            "status": {
+              "sortable": 0,
+              "default_sort_order": "asc",
+              "align": "",
+              "separator": ""
+            },
+            "expire": {
+              "sortable": 0,
+              "default_sort_order": "asc",
+              "align": "",
+              "separator": ""
+            }
+          }
+        },
+        "header": {
+          "text": {
+            "id": "text",
+            "table": "views",
+            "field": "area",
+            "empty": true,
+            "content": "IP addresses blocked from access based on suspicious activity per Project Honeypot.\r\n    \r\n    \t\tStatus of 1 = Blacklisted IPs (also inserted as banned hosts in Blocked_IPs table)\r\n    \t\tStatus of 2 = Greylisted IPs",
+            "format": "plain_text"
+          }
+        },
+        "empty": {
+          "text": {
+            "id": "text",
+            "table": "views",
+            "field": "area",
+            "empty": true,
+            "content": "No blocked IPs at this time.",
+            "format": "plain_text"
+          }
+        },
+        "fields": {
+          "hostname": {
+            "id": "hostname",
+            "table": "httpbl",
+            "field": "hostname",
+            "alter": {
+              "make_link": true,
+              "path": "http://www.projecthoneypot.org/search_ip.php?ip=[hostname]"
+            },
+            "hide_alter_empty": false
+          },
+          "status": {
+            "id": "status",
+            "table": "httpbl",
+            "field": "status"
+          },
+          "expire": {
+            "id": "expire",
+            "table": "httpbl",
+            "field": "expire",
+            "hide_alter_empty": false,
+            "date_format": "long"
+          }
+        },
+        "sorts": {
+          "expire": {
+            "id": "expire",
+            "table": "httpbl",
+            "field": "expire"
+          }
+        },
+        "filters": {
+          "status": {
+            "id": "status",
+            "table": "httpbl",
+            "field": "status",
+            "operator": ">",
+            "value": {
+              "value": "0"
+            },
+            "expose": {
+              "operator": false
+            }
+          }
+        }
+      }
+    },
+    "page_1": {
+      "display_title": "Page",
+      "display_plugin": "page",
+      "display_options": {
+        "query": {
+          "type": "views_query",
+          "options": []
+        },
+        "defaults": {
+          "hide_admin_links": false
+        },
+        "path": "admin/reports/blocked-hosts",
+        "menu": {
+          "type": "normal",
+          "title": "http:BL Blocked Hosts",
+          "description": "Visitors blocked via Project Honeypot",
+          "weight": "0",
+          "name": "management",
+          "context": 0,
+          "context_only_inline": 0
+        }
+      }
+    }
+  }
+}

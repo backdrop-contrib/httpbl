@@ -56,11 +56,11 @@ function httpbl_update_1000() {
   $config = config('httpbl.settings');
   $config->set('accesskey', update_variable_get('httpbl_accesskey', null));
   $config->set('check', update_variable_get('httpbl_check', 0));
-  $config->set('footer', update_variable_get('httpbl_footer', false));
+  $config->set('footer', update_variable_get('httpbl_footer', FALSE));
   $config->set('link', update_variable_get('httpbl_link', null));
   $config->set('word', update_variable_get('httpbl_word', 'randomness'));
   $config->set('log', update_variable_get('httpbl_log', 1));
-  $config->set('stats', update_variable_get('httpbl_stats', true));
+  $config->set('stats', update_variable_get('httpbl_stats', TRUE));
   $config->set('cache', update_variable_get('httpbl_cache', 1));
   $config->set('black_threshold', update_variable_get('httpbl_black_threshold', 50));
   $config->set('message_black', update_variable_get('httpbl_message_black', t('Sorry, your IP address (%ip) has been blacklisted by <a href="%ipurl">http:BL</a>.%honeypot')));
@@ -107,4 +107,167 @@ function httpbl_update_1001() {
   state_set('httpbl_stat_grey', $config->get('stat_grey'));
   $config->clear('stat_grey');
   $config->save();
+}
+
+/**
+ * Convert and add httpbl blocked hosts View.
+ */
+function httpbl_update_1002() {
+  $view_config = [
+    "_config_name" => "views.view.httpbl_blocked_hosts",
+    "name" => "httpbl_blocked_hosts",
+    "description" =>
+        "Blocked Visitors via Honeypot.org.  This requires caching to be enabled at admin >> config >> people >> httpbl.",
+    "tag" => "http:BL",
+    "disabled" => FALSE,
+    "base_table" => "httpbl",
+    "human_name" => "http:BL Blocked Hosts",
+    "core" => 0,
+    "display" => [
+        "default" => [
+            "display_title" => "Defaults",
+            "display_plugin" => "default",
+            "display_options" => [
+                "query" => [
+                    "type" => "views_query",
+                    "options" => ["query_comment" => FALSE],
+                ],
+                "title" => "http:BL Blocked Hosts",
+                "use_more_always" => FALSE,
+                "access" => ["type" => "perm", "perm" => "access site reports"],
+                "cache" => ["type" => "none"],
+                "exposed_form" => ["type" => "basic"],
+                "pager" => [
+                    "type" => "full",
+                    "options" => [
+                        "items_per_page" => "25",
+                        "offset" => "0",
+                        "id" => "0",
+                    ],
+                ],
+                "style_plugin" => "table",
+                "style_options" => [
+                    "columns" => [
+                        "counter" => "counter",
+                        "hostname" => "hostname",
+                        "status" => "status",
+                        "expire" => "expire",
+                    ],
+                    "default" => "-1",
+                    "info" => [
+                        "counter" => ["align" => "", "separator" => ""],
+                        "hostname" => [
+                            "sortable" => 0,
+                            "default_sort_order" => "asc",
+                            "align" => "",
+                            "separator" => "",
+                        ],
+                        "status" => [
+                            "sortable" => 0,
+                            "default_sort_order" => "asc",
+                            "align" => "",
+                            "separator" => "",
+                        ],
+                        "expire" => [
+                            "sortable" => 0,
+                            "default_sort_order" => "asc",
+                            "align" => "",
+                            "separator" => "",
+                        ],
+                    ],
+                ],
+                "header" => [
+                    "text" => [
+                        "id" => "text",
+                        "table" => "views",
+                        "field" => "area",
+                        "empty" => TRUE,
+                        "content" => "IP addresses blocked from access based on suspicious activity per Project Honeypot.
+
+    		Status of 1 = Blacklisted IPs (also inserted as banned hosts in Blocked_IPs table)
+    		Status of 2 = Greylisted IPs",
+                        "format" => "plain_text",
+                    ],
+                ],
+                "empty" => [
+                    "text" => [
+                        "id" => "text",
+                        "table" => "views",
+                        "field" => "area",
+                        "empty" => TRUE,
+                        "content" => "No blocked IPs at this time.",
+                        "format" => "plain_text",
+                    ],
+                ],
+                "fields" => [
+                    "hostname" => [
+                        "id" => "hostname",
+                        "table" => "httpbl",
+                        "field" => "hostname",
+                        "alter" => [
+                            "make_link" => TRUE,
+                            "path" =>
+                                "http://www.projecthoneypot.org/search_ip.php?ip=[hostname]",
+                        ],
+                        "hide_alter_empty" => FALSE,
+                    ],
+                    "status" => [
+                        "id" => "status",
+                        "table" => "httpbl",
+                        "field" => "status",
+                    ],
+                    "expire" => [
+                        "id" => "expire",
+                        "table" => "httpbl",
+                        "field" => "expire",
+                        "hide_alter_empty" => FALSE,
+                        "date_format" => "long",
+                    ],
+                ],
+                "sorts" => [
+                    "expire" => [
+                        "id" => "expire",
+                        "table" => "httpbl",
+                        "field" => "expire",
+                    ],
+                ],
+                "filters" => [
+                    "status" => [
+                        "id" => "status",
+                        "table" => "httpbl",
+                        "field" => "status",
+                        "operator" => ">",
+                        "value" => ["value" => "0"],
+                        "expose" => ["operator" => FALSE],
+                    ],
+                ],
+            ],
+        ],
+        "page_1" => [
+            "display_title" => "Page",
+            "display_plugin" => "page",
+            "display_options" => [
+                "query" => ["type" => "views_query", "options" => []],
+                "defaults" => ["hide_admin_links" => FALSE],
+                "path" => "admin/reports/blocked-hosts",
+                "menu" => [
+                    "type" => "normal",
+                    "title" => "http:BL Blocked Hosts",
+                    "description" => "Visitors blocked via Project Honeypot",
+                    "weight" => "0",
+                    "name" => "management",
+                    "context" => 0,
+                    "context_only_inline" => 0,
+                ],
+            ],
+        ],
+    ],
+  ];
+
+  $config = config('views.view.httpbl_blocked_hosts');
+  if ($config->isNew()) {
+    $config->setData($view_config);
+    $config->save();
+  }
+
 }

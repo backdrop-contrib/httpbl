@@ -166,4 +166,3 @@ function httpbl_views_handlers() {
     ),
   );
 }
-
