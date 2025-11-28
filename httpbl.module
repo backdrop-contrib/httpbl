@@ -387,7 +387,7 @@ function httpbl_cron() {
   $config = config('httpbl.settings');
   // Only continue when caching is enabled
   if ($config->get('cache')) {
-    if ($config->get('cache') == HTTPBL_CACHE_DBDRUPAL) {
+    if ($config->get('cache') == HTTPBL_CACHE_DBDRUPAL && db_table_exists('blocked_ips')) {
       // Also check status so that we do not accidentally delete the site's custom access rules.
       db_delete('blocked_ips')
         ->where('ip IN (SELECT hostname FROM {httpbl} WHERE status > 0 AND expire <= :time)', array(':time' => REQUEST_TIME))
@@ -656,7 +656,7 @@ function _httpbl_cache_set($ip, $status, $offset = 0) {
 
   // Also, conditionally, ban blacklisted IPs in Backdrop blocked_ips table
 
-  if ($status == HTTPBL_LIST_BLACK && $config->get('cache') == HTTPBL_CACHE_DBDRUPAL) {
+  if ($status == HTTPBL_LIST_BLACK && $config->get('cache') == HTTPBL_CACHE_DBDRUPAL && db_table_exists('blocked_ips')) {
 
     if (_httpbl_banned_check($ip)) {
 
@@ -720,7 +720,7 @@ function _httpbl_cache_update($ip, $status, $offset = 0) {
     watchdog_exception('httpbl', $e);
   }
 
-  if ($status == HTTPBL_LIST_BLACK && $config->get('cache') == HTTPBL_CACHE_DBDRUPAL) {
+  if ($status == HTTPBL_LIST_BLACK && $config->get('cache') == HTTPBL_CACHE_DBDRUPAL && db_table_exists('blocked_ips')) {
     if (_httpbl_banned_check($ip)) {
 
       if ($logs = ($config->get('log'))) {
@@ -771,6 +771,10 @@ function _httpbl_cache_get($ip) {
  * @return SelectQuery|false
  */
 function _httpbl_banned_check($ip) {
+  if (!db_table_exists('blocked_ips')) {
+    return FALSE;
+  }
+
   return db_select('blocked_ips', 'banned')
     ->fields('banned', array('ip'))
     ->condition('ip', $ip)
