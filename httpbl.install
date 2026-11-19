@@ -45,6 +45,14 @@ function httpbl_schema() {
  * Implementation of hook_uninstall().
  */
 function httpbl_uninstall() {
+  // Release the core bans this module created. Once its own table is gone
+  // there is nothing left to expire them, so they would stay forever.
+  if (db_table_exists('httpbl')) {
+    db_delete('blocked_ips')
+      ->where('ip IN (SELECT hostname FROM {httpbl} WHERE status > 0)')
+      ->execute();
+  }
+
   backdrop_uninstall_schema('httpbl');
 }
 
@@ -184,8 +192,8 @@ function httpbl_update_1002() {
                         "empty" => TRUE,
                         "content" => "IP addresses blocked from access based on suspicious activity per Project Honeypot.
 
-    		Status of 1 = Blacklisted IPs (also inserted as banned hosts in Blocked_IPs table)
-    		Status of 2 = Greylisted IPs",
+            Status of 1 = Blacklisted IPs (also inserted as banned hosts in Blocked_IPs table)
+            Status of 2 = Greylisted IPs",
                         "format" => "plain_text",
                     ],
                 ],

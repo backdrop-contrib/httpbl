@@ -1,0 +1,5 @@
+[HttpblWhitelistCsrfTestCase]
+name = Http:BL whitelist challenge forgery
+description = A forged submission of the whitelist challenge must not blacklist or ban the visitor address.
+group = Http:BL
+file = httpbl_whitelist_csrf.test
