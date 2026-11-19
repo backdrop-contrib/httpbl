@@ -145,7 +145,11 @@ function httpbl_boot() {
       $link = httpbl_honeylink($link, $word);
     }
 
-    $message = strtr($message, array('%ip' => ip_address(), '%ipurl' => _httpbl_ipdata(ip_address(), FALSE), '%honeypot' => $link, '%whitelisturl' => _httpbl_url('/httpbl/whitelist')));
+    // The client IP reaches this message straight from the request, so escape
+    // it (and the Project Honeypot URL built from it) for the HTML and the
+    // href attribute it is substituted into.
+    $ip = _httpbl_client_ip();
+    $message = strtr($message, array('%ip' => check_plain($ip), '%ipurl' => check_plain(_httpbl_ipdata($ip, FALSE)), '%honeypot' => $link, '%whitelisturl' => _httpbl_url('/httpbl/whitelist')));
 
     if (!headers_sent()) {
       header('HTTP/1.1 403 Forbidden');
@@ -205,7 +209,7 @@ function httpbl_check() {
   }
   $config = config('httpbl.settings');
 
-  $ip = ip_address();
+  $ip = _httpbl_client_ip();
   //$ip = '127.1.40.1'; // simulate greylist response for testing
   //$ip = '127.1.80.1'; // simulate blacklist response for testing
 
@@ -547,7 +551,7 @@ function _httpbl_whitelist_token_valid($form_state) {
  * Ban the user if the 'forbidden' field was filled in.
  */
 function httpbl_request_whitelist_validate($form, &$form_state) {
-  $ip = ip_address();
+  $ip = _httpbl_client_ip();
   $iplink = _httpbl_ipdata($ip);
   $config = config('httpbl.settings');
 
@@ -592,7 +596,7 @@ function httpbl_request_whitelist_validate($form, &$form_state) {
  * Grant the session whitelist.
  */
 function httpbl_request_whitelist_submit($form, &$form_state) {
-  $ip = ip_address();
+  $ip = _httpbl_client_ip();
   $iplink = _httpbl_ipdata($ip);
   $config = config('httpbl.settings');
 
@@ -853,13 +857,38 @@ function _httpbl_banned_check($ip) {
  * @return string
  */
 function _httpbl_ipdata($ip, $anchor = TRUE) {
+  $url = 'http://www.projecthoneypot.org/search_ip.php?ip=' . rawurlencode($ip);
+
   if ($anchor) {
-    return '<a href="http://www.projecthoneypot.org/search_ip.php?ip=' . $ip . '">IP data</a>';
+    // This string is handed to watchdog() as a link, which is stored and later
+    // printed as markup, so the URL has to be attribute safe.
+    return '<a href="' . check_plain($url) . '">IP data</a>';
   }
   else {
-    return 'http://www.projecthoneypot.org/search_ip.php?ip=' . $ip;
+    return $url;
   }
 }
+
+/**
+ * Return the client IP address, or an empty string when there isn't a valid one.
+ *
+ * ip_address() returns whatever the configured reverse proxy header holds, and
+ * that value is never checked to be an IP address. The module stores it, bans
+ * on it and prints it, so validate it here instead of trusting the header, and
+ * fall back to the connecting peer.
+ */
+function _httpbl_client_ip() {
+  $ip = ip_address();
+
+  if (filter_var($ip, FILTER_VALIDATE_IP)) {
+    return $ip;
+  }
+
+  $remote = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
+
+  return filter_var($remote, FILTER_VALIDATE_IP) ? $remote : '';
+}
+
 
 /**
  * Lightweight url function, since url() isn't available yet.

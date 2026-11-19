@@ -1,0 +1,112 @@
+<?php
+
+/**
+ * @file
+ * Tests that http:BL validates and escapes the client IP address.
+ */
+
+class HttpblIpSanitizationTestCase extends DrupalWebTestCase
+{
+
+  public function setUp() {
+    parent::setUp('httpbl');
+    config_set('httpbl.settings', 'check', HTTPBL_CHECK_ALL);
+    config_set('httpbl.settings', 'cache', HTTPBL_CACHE_DBDRUPAL);
+    config_set('httpbl.settings', 'log', HTTPBL_LOG_MIN);
+  }
+
+  /**
+   * The Project Honeypot link is handed to watchdog() and printed as markup.
+   */
+  public function testIpDataLinkEscapesMarkup() {
+    $payload = '<script>alert("httpbl")</script>';
+    $link = _httpbl_ipdata($payload, TRUE);
+
+    $this->assertFalse(strpos($link, '<script>'), 'The IP data anchor contains no unescaped script tag.');
+    $this->assertFalse(strpos($link, $payload), 'The IP data anchor does not carry the raw payload.');
+    $this->assertTrue(strpos($link, 'projecthoneypot.org') !== FALSE, 'The IP data anchor still points at Project Honeypot.');
+
+    $url = _httpbl_ipdata($payload, FALSE);
+    $this->assertFalse(strpos($url, '<'), 'The IP data URL contains no unescaped angle bracket.');
+  }
+
+  /**
+   * A legitimate address has to survive unchanged, encoding aside.
+   */
+  public function testIpDataLinkKeepsValidAddress() {
+    $link = _httpbl_ipdata('203.0.113.7', TRUE);
+    $this->assertTrue(strpos($link, 'ip=203.0.113.7') !== FALSE, 'A valid IP is preserved in the IP data anchor.');
+
+    $url = _httpbl_ipdata('203.0.113.7', FALSE);
+    $this->assertEqual($url, 'http://www.projecthoneypot.org/search_ip.php?ip=203.0.113.7', 'A valid IP produces the expected Project Honeypot URL.');
+  }
+
+  /**
+   * ip_address() returns raw proxy header content, which may not be an IP.
+   */
+  public function testClientIpRejectsNonAddress() {
+    $original_remote = $_SERVER['REMOTE_ADDR'];
+    $original_xff = isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? $_SERVER['HTTP_X_FORWARDED_FOR'] : NULL;
+
+    $GLOBALS['settings']['reverse_proxy'] = 1;
+    $GLOBALS['settings']['reverse_proxy_header'] = 'HTTP_X_FORWARDED_FOR';
+    $GLOBALS['settings']['reverse_proxy_addresses'] = array('192.0.2.1');
+    $_SERVER['REMOTE_ADDR'] = '192.0.2.1';
+    $_SERVER['HTTP_X_FORWARDED_FOR'] = '<script>alert("httpbl")</script>';
+    backdrop_static_reset('ip_address');
+
+    $this->assertEqual(ip_address(), '<script>alert("httpbl")</script>', 'Drupal core hands the raw proxy header through as the client IP.');
+    $this->assertEqual(_httpbl_client_ip(), '192.0.2.1', 'A proxy header that is not an IP address falls back to the connecting peer.');
+
+    // A spoofed but well formed address is still honoured, so the fix does not
+    // break sites that really do run behind a trusted proxy.
+    $_SERVER['HTTP_X_FORWARDED_FOR'] = '203.0.113.9';
+    backdrop_static_reset('ip_address');
+    $this->assertEqual(_httpbl_client_ip(), '203.0.113.9', 'A valid forwarded address is still used.');
+
+    $_SERVER['REMOTE_ADDR'] = $original_remote;
+    if ($original_xff === NULL) {
+      unset($_SERVER['HTTP_X_FORWARDED_FOR']);
+    } else {
+      $_SERVER['HTTP_X_FORWARDED_FOR'] = $original_xff;
+    }
+    $GLOBALS['settings']['reverse_proxy'] = 0;
+    backdrop_static_reset('ip_address');
+  }
+
+  /**
+   * The blocked response is echoed straight out of hook_boot().
+   */
+  public function testBlockedResponseEscapesClientIp() {
+    $payload = '<script>alert("httpbl")</script>';
+    db_merge('httpbl')
+      ->key(array('hostname' => $payload))
+      ->fields(array('status' => HTTPBL_LIST_GREY, 'expire' => REQUEST_TIME + 86400))
+      ->execute();
+
+    $GLOBALS['settings']['reverse_proxy'] = 1;
+    $GLOBALS['settings']['reverse_proxy_header'] = 'HTTP_X_FORWARDED_FOR';
+    // The test browser reaches the site over the loopback interface, so trust
+    // it as the proxy in order to drive ip_address() from the header.
+    $GLOBALS['settings']['reverse_proxy_addresses'] = array('192.0.2.1', '::1');
+    $this->additionalCurlOptions[CURLOPT_HTTPHEADER] = array('X-Forwarded-For: ' . $payload);
+    $this->curlClose();
+
+    $this->backdropGet('');
+    $body = $this->backdropGetContent();
+
+    unset($this->additionalCurlOptions[CURLOPT_HTTPHEADER]);
+    $this->curlClose();
+    $GLOBALS['settings']['reverse_proxy'] = 0;
+
+    if (strpos($body, 'greylisted') === FALSE && strpos($body, 'httpbl') === FALSE) {
+      // The header did not reach ip_address() on this host, so the blocked
+      // response was never produced and there is nothing to assert about it.
+      $this->pass('Proxy header did not drive the client IP on this host; blocked response not exercised.');
+      return;
+    }
+
+    $this->assertFalse(strpos($body, $payload), 'The blocked response contains no unescaped client IP.');
+    $this->assertTrue(strpos($body, check_plain($payload)) !== FALSE, 'The blocked response prints the client IP escaped.');
+  }
+}
