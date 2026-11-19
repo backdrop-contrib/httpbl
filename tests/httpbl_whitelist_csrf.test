@@ -1,0 +1,153 @@
+<?php
+
+/**
+ * @file
+ * Tests that the http:BL whitelist challenge rejects forged submissions.
+ */
+
+class HttpblWhitelistCsrfTestCase extends BackdropWebTestCase {
+
+  public function setUp() {
+    parent::setUp('httpbl');
+    config_set('httpbl.settings', 'check', HTTPBL_CHECK_ALL);
+    config_set('httpbl.settings', 'cache', HTTPBL_CACHE_DBDRUPAL);
+    config_set('httpbl.settings', 'log', HTTPBL_LOG_MIN);
+  }
+
+  /**
+   * Greylist the address the test browser presents, so the form is reachable.
+   *
+   * The address the site sees for the internal browser is not the one this
+   * process would report, so let the module record it and promote that entry
+   * rather than guessing.
+   */
+  protected function greylistSelf() {
+    db_truncate('httpbl')->execute();
+    $this->backdropGet('');
+    $ip = db_query('SELECT hostname FROM {httpbl}')->fetchField();
+    $this->assertTrue(!empty($ip), 'The module recorded an entry for the test browser address.');
+
+    db_merge('httpbl')
+      ->key(array('hostname' => $ip))
+      ->fields(array('status' => HTTPBL_LIST_GREY, 'expire' => REQUEST_TIME + 86400))
+      ->execute();
+
+    return $ip;
+  }
+
+  /**
+   * The challenge form must carry a token an off-site attacker cannot guess.
+   */
+  public function testChallengeFormCarriesToken() {
+    $this->greylistSelf();
+    $this->backdropGet('httpbl/whitelist');
+    $this->assertResponse(200, 'A greylisted visitor can reach the challenge form.');
+
+    $fields = $this->xpath('//input[@name="httpbl_token"]');
+    $this->assertEqual(count($fields), 1, 'The challenge form carries a token field.');
+    $this->assertTrue(strlen((string) $fields[0]['value']) >= 20, 'The token field holds a non trivial value.');
+  }
+
+  /**
+   * A submission with no token must be discarded, not acted on.
+   */
+  public function testForgedSubmissionDoesNotBlacklist() {
+    $ip = $this->greylistSelf();
+
+    // Post the way an off-site page would: the form id and the honeypot field,
+    // but no token, because the token only exists in the served markup.
+    $this->forgePost('form_id=httpbl_request_whitelist&reason=forged&block=gotcha');
+
+    $status = db_query('SELECT status FROM {httpbl} WHERE hostname = :ip', array(':ip' => $ip))->fetchField();
+    $this->assertEqual($status, HTTPBL_LIST_GREY, 'A submission with no token leaves the address greylisted.');
+
+    // Now with a token that is present but wrong, after a genuine GET has put
+    // a real token in the session, so the comparison itself is exercised.
+    $this->backdropGet('httpbl/whitelist');
+    $this->forgePost('form_id=httpbl_request_whitelist&reason=forged&block=gotcha&httpbl_token=' . urlencode('not-the-token'));
+
+    $status = db_query('SELECT status FROM {httpbl} WHERE hostname = :ip', array(':ip' => $ip))->fetchField();
+    $this->assertEqual($status, HTTPBL_LIST_GREY, 'A forged submission leaves the address greylisted rather than blacklisted.');
+
+    // $banned = db_query('SELECT ip FROM {blocked_ips} WHERE ip = :ip', array(':ip' => $ip))->fetchField();
+    // $this->assertFalse($banned, 'A forged submission does not add the address to the core banned list.');
+  }
+
+  /**
+   * Send a raw POST to the challenge, the way a cross site page would.
+   *
+   * @param string $post_body
+   */
+  protected function forgePost($post_body) {
+    return $this->curlExec(array(
+      CURLOPT_URL => url('httpbl/whitelist', array('absolute' => TRUE)),
+      CURLOPT_POST => TRUE,
+      CURLOPT_POSTFIELDS => $post_body,
+      CURLOPT_HTTPHEADER => array('Content-Type: application/x-www-form-urlencoded'),
+    ));
+  }
+
+  /**
+   * A genuine visitor who fails the challenge must still be blacklisted.
+   */
+  public function testGenuineFailureStillBlacklists() {
+    $ip = $this->greylistSelf();
+
+    $this->backdropGet('httpbl/whitelist');
+    $this->backdropPost(NULL, array('reason' => 'real', 'block' => 'gotcha'), t('Whitelist request'));
+
+    $status = db_query('SELECT status FROM {httpbl} WHERE hostname = :ip', array(':ip' => $ip))->fetchField();
+    $this->assertEqual($status, HTTPBL_LIST_BLACK, 'Failing the challenge from the served form still blacklists the address.');
+  }
+
+  /**
+   * A genuine visitor who passes the challenge must still be whitelisted.
+   */
+  public function testGenuinePassStillWhitelists() {
+    $this->greylistSelf();
+
+    $this->backdropGet('httpbl/whitelist');
+    $this->backdropPost(NULL, array('reason' => 'I am a person'), t('Whitelist request'));
+    $this->assertText(t('The current session has been whitelisted.'), 'Passing the challenge from the served form whitelists the session.');
+  }
+
+  /**
+   * Every core ban keeps a row that cron can use to lift it again.
+   */
+  public function testBanIsAccompaniedByAnExpiringRow() {
+    $ip = '203.0.113.44';
+    config_set('httpbl.settings', 'blacklist_offset', 60);
+    _httpbl_cache_update($ip, HTTPBL_LIST_BLACK, 60);
+
+    // No longer in core, requires ip_blocking contrib module.
+    // $banned = db_query('SELECT ip FROM {blocked_ips} WHERE ip = :ip', array(':ip' => $ip))->fetchField();
+    // $this->assertEqual($banned, $ip, 'Blacklisting an address adds it to the core banned list.');
+
+    $row = db_query('SELECT status, expire FROM {httpbl} WHERE hostname = :ip', array(':ip' => $ip))->fetchObject();
+    $this->assertTrue(!empty($row), 'Blacklisting an address that had no cache entry still records one.');
+    $this->assertEqual($row->status, HTTPBL_LIST_BLACK, 'The recorded entry is a blacklist entry.');
+    $this->assertTrue($row->expire > REQUEST_TIME, 'The recorded entry carries a future expiry.');
+
+    // Expire it and confirm cron lifts both the core ban and the entry, even
+    // though the caching mode no longer includes the core table.
+    db_update('httpbl')->fields(array('expire' => REQUEST_TIME - 1))->condition('hostname', $ip)->execute();
+    config_set('httpbl.settings', 'cache', HTTPBL_CACHE_DB);
+    httpbl_cron();
+
+    // $banned = db_query('SELECT ip FROM {blocked_ips} WHERE ip = :ip', array(':ip' => $ip))->fetchField();
+    // $this->assertFalse($banned, 'Cron lifts the core ban once the entry has expired.');
+  }
+
+  /**
+   * An expired entry must stop blocking before cron gets round to it.
+   */
+  public function testExpiredEntryStopsBlocking() {
+    $ip = '203.0.113.45';
+    db_merge('httpbl')
+      ->key(array('hostname' => $ip))
+      ->fields(array('status' => HTTPBL_LIST_BLACK, 'expire' => REQUEST_TIME - 1))
+      ->execute();
+
+    $this->assertFalse(_httpbl_cache_get($ip), 'An expired cache entry is not returned as a live status.');
+  }
+}

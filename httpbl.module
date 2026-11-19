@@ -387,19 +387,19 @@ function httpbl_requirements($phase) {
  * Cleans old results from the cache table and also Backdrop's blocked_ips table if appropriate.
  */
 function httpbl_cron() {
-  $config = config('httpbl.settings');
-  // Only continue when caching is enabled
-  if ($config->get('cache')) {
-    if ($config->get('cache') == HTTPBL_CACHE_DBDRUPAL && db_table_exists('blocked_ips')) {
-      // Also check status so that we do not accidentally delete the site's custom access rules.
-      db_delete('blocked_ips')
-        ->where('ip IN (SELECT hostname FROM {httpbl} WHERE status > 0 AND expire <= :time)', array(':time' => REQUEST_TIME))
-        ->execute();
-    }
-    db_delete('httpbl')
-      ->condition('expire', REQUEST_TIME, '<=')
+  if (db_table_exists('blocked_ips')) {
+    // Lift expired bans from the core table first, while the rows that identify
+    // them still exist. This runs whatever the caching mode is set to now,
+    // because bans written under a previous mode must still be cleaned up.
+    // Also check status so that we do not accidentally delete the site's custom
+    // access rules.
+    db_delete('blocked_ips')
+      ->where('ip IN (SELECT hostname FROM {httpbl} WHERE status > 0 AND expire <= :time)', array(':time' => REQUEST_TIME))
       ->execute();
   }
+  db_delete('httpbl')
+    ->condition('expire', REQUEST_TIME, '<=')
+    ->execute();
 }
 
 /**
@@ -468,6 +468,19 @@ function httpbl_whitelist_access() {
  * Form to request a session whitelist.
  */
 function httpbl_request_whitelist($form, &$form_state) {
+  // Backdrop only adds form_token for authenticated users, and this form is only
+  // ever served to anonymous visitors, so it would otherwise accept a forged
+  // off-site submission. Carry a token of our own in the visitor's session;
+  // writing to $_SESSION here also starts the session the token is bound to.
+  if (empty($_SESSION['httpbl_whitelist_token'])) {
+    $_SESSION['httpbl_whitelist_token'] = backdrop_hash_base64(backdrop_random_bytes(32));
+  }
+
+  $form['httpbl_token'] = array(
+    '#type' => 'hidden',
+    '#default_value' => $_SESSION['httpbl_whitelist_token'],
+  );
+
   $form['reason'] = array(
     '#type' => 'textarea',
     '#title' => t('Reason you were blocked. (It\'s okay to say you don\'t know if you don\'t)'),
@@ -502,6 +515,34 @@ function httpbl_request_whitelist($form, &$form_state) {
 }
 
 /**
+ * Check the session token carried by a whitelist challenge submission.
+ *
+ * @param array $form_state
+ *
+ * @return bool
+ *   TRUE when the submission presented the token stored in this visitor's
+ *   session, FALSE otherwise.
+ */
+function _httpbl_whitelist_token_valid($form_state) {
+  // Read the raw input, not $form_state['values']: the Form API falls back to
+  // an element's #default_value when the field is absent from the submission,
+  // which for this token is the very value we are checking against. Core
+  // checks form_token off $form_state['input'] for the same reason.
+  if (empty($_SESSION['httpbl_whitelist_token']) || empty($form_state['input']['httpbl_token'])) {
+    return FALSE;
+  }
+
+  $expected = $_SESSION['httpbl_whitelist_token'];
+  $supplied = $form_state['input']['httpbl_token'];
+
+  if (function_exists('hash_equals')) {
+    return hash_equals($expected, $supplied);
+  }
+
+  return $expected === $supplied;
+}
+
+/**
  * Validate session whitelist request.
  * Ban the user if the 'forbidden' field was filled in.
  */
@@ -509,6 +550,17 @@ function httpbl_request_whitelist_validate($form, &$form_state) {
   $ip = ip_address();
   $iplink = _httpbl_ipdata($ip);
   $config = config('httpbl.settings');
+
+  // A submission that cannot present the session token was not made from the
+  // form we served, so refuse it instead of acting on the honeypot fields. A
+  // forged request must never be able to get an address blacklisted.
+  if (!_httpbl_whitelist_token_valid($form_state)) {
+    if ($config->get('httpbl_log')) {
+      watchdog('httpbl', 'Discarded an unverified session whitelist request from %ip.', array('%ip' => $ip), WATCHDOG_WARNING, $iplink);
+    }
+    form_set_error('httpbl_token', t('Your whitelist request could not be verified. Please reload this page and try again.'));
+    return;
+  }
 
   if ($form_state['values']['block'] || $form_state['values']['leave']) {
     if ($config->get('cache')) {
@@ -548,6 +600,7 @@ function httpbl_request_whitelist_submit($form, &$form_state) {
     watchdog('httpbl', 'Session from %ip whitelisted. Reason for block: @reason', array('%ip' => $ip, '@reason' => check_plain($form_state['values']['reason'])), WATCHDOG_WARNING, $iplink);
   }
   backdrop_set_message(t('The current session has been whitelisted.'), 'status', FALSE);
+  unset($_SESSION['httpbl_whitelist_token']);
   $_SESSION['httpbl_status'] = 'white';
 
   //redirect form to original destination hidden in form
@@ -711,7 +764,11 @@ function _httpbl_cache_update($ip, $status, $offset = 0) {
   $config = config('httpbl.settings');
 
   try {
-    db_update('httpbl')
+    // Merge rather than update: a ban is also written to the blocked_ips
+    // table below, and cron can only lift that ban while a matching row with an
+    // expiry still exists here.
+    db_merge('httpbl')
+      ->key(array('hostname' => $ip))
       ->fields(array(
         'status' => $status,
         'expire' => REQUEST_TIME + $offset,
@@ -761,6 +818,7 @@ function _httpbl_cache_get($ip) {
   return db_select('httpbl', 'h')
     ->fields('h', array('status'))
     ->condition('hostname', $ip)
+    ->condition('expire', REQUEST_TIME, '>')
     ->range(0, 1)
     ->execute()
     ->fetchField();
