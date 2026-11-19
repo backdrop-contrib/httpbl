@@ -3,3 +3,9 @@ name = Http:BL whitelist challenge forgery
 description = A forged submission of the whitelist challenge must not blacklist or ban the visitor address.
 group = Http:BL
 file = httpbl_whitelist_csrf.test
+
+[HttpblIpSanitizationTestCase]
+name = Http:BL client IP sanitization
+description = Validates the client IP taken from the request and escapes it everywhere the module prints it.
+group = Http:BL
+file = httpbl_ip_sanitization.test
