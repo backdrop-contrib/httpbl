@@ -214,7 +214,7 @@ function httpbl_check() {
   //$ip = '127.1.80.1'; // simulate blacklist response for testing
 
   // Check if user is whitelisted in any way
-  if (_httpbl_whitelisted()) {
+  if (_httpbl_whitelisted($ip)) {
     $result = HTTPBL_LIST_SAFE;
 
     if ($logs = ($config->get('log') == HTTPBL_LOG_VERBOSE)) {
@@ -606,6 +606,8 @@ function httpbl_request_whitelist_submit($form, &$form_state) {
   backdrop_set_message(t('The current session has been whitelisted.'), 'status', FALSE);
   unset($_SESSION['httpbl_whitelist_token']);
   $_SESSION['httpbl_status'] = 'white';
+  $_SESSION['httpbl_white_ip'] = $ip;
+  $_SESSION['httpbl_white_expire'] = REQUEST_TIME + config_get('httpbl.settings','safe_offset');
 
   //redirect form to original destination hidden in form
   backdrop_goto($form_state['values']['arrival']);
@@ -682,11 +684,38 @@ function httpbl_dnslookup($ip, $key = NULL) {
 /**
  * Check if an IP is whitelisted through a session whitelist.
  *
+ * @param string $ip
+ *
  * @return bool
  */
-function _httpbl_whitelisted() {
-  return (isset($_SESSION['httpbl_status']) && $_SESSION['httpbl_status'] == 'white');
+function _httpbl_whitelisted($ip) {
+  if (!isset($_SESSION['httpbl_status']) || $_SESSION['httpbl_status'] != 'white') {
+    return FALSE;
+  }
+
+  // A whitelist belongs to the visitor who passed the challenge, not to
+  // whoever presents the session cookie afterwards. Without these checks the
+  // cookie can be handed to another host, including a blacklisted one, and it
+  // short-circuits both the cache and the DNS lookup below for good.
+  $issued_for = isset($_SESSION['httpbl_white_ip']) ? $_SESSION['httpbl_white_ip'] : NULL;
+  $expires = isset($_SESSION['httpbl_white_expire']) ? $_SESSION['httpbl_white_expire'] : 0;
+
+  if ($issued_for !== $ip || $expires <= REQUEST_TIME) {
+    _httpbl_whitelist_revoke();
+
+    return FALSE;
+  }
+
+  return TRUE;
 }
+
+/**
+ * Drop a session whitelist that no longer applies.
+ */
+function _httpbl_whitelist_revoke() {
+  unset($_SESSION['httpbl_status'], $_SESSION['httpbl_white_ip'], $_SESSION['httpbl_white_expire']);
+}
+
 
 /**
  * Write status value into httpbl cache table
