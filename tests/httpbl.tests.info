@@ -9,3 +9,9 @@ name = Http:BL client IP sanitization
 description = Validates the client IP taken from the request and escapes it everywhere the module prints it.
 group = Http:BL
 file = httpbl_ip_sanitization.test
+
+[HttpblSessionWhitelistTestCase]
+name = Http:BL session whitelist scope
+description = A session whitelist is bound to the address that earned it and expires, so the cookie cannot be reused elsewhere.
+group = Http:BL
+file = httpbl_session_whitelist.test

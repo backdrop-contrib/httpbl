@@ -1,6 +1,6 @@
 name = Http:BL
-description = An implementation of Project Honey Pot's http:BL.
-package = "Spam control"
+description = An implementation of Project Honey Pot, http:BL.
+package = Spam control
 backdrop = 1.x
 type = module
 configure = admin/config/people/httpbl

@@ -5,8 +5,7 @@
  * Tests that http:BL validates and escapes the client IP address.
  */
 
-class HttpblIpSanitizationTestCase extends DrupalWebTestCase
-{
+class HttpblIpSanitizationTestCase extends BackdropWebTestCase {
 
   public function setUp() {
     parent::setUp('httpbl');
@@ -55,7 +54,7 @@ class HttpblIpSanitizationTestCase extends DrupalWebTestCase
     $_SERVER['HTTP_X_FORWARDED_FOR'] = '<script>alert("httpbl")</script>';
     backdrop_static_reset('ip_address');
 
-    $this->assertEqual(ip_address(), '<script>alert("httpbl")</script>', 'Drupal core hands the raw proxy header through as the client IP.');
+    $this->assertEqual(ip_address(), '<script>alert("httpbl")</script>', 'Backdrop core hands the raw proxy header through as the client IP.');
     $this->assertEqual(_httpbl_client_ip(), '192.0.2.1', 'A proxy header that is not an IP address falls back to the connecting peer.');
 
     // A spoofed but well formed address is still honoured, so the fix does not

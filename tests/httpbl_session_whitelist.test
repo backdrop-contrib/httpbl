@@ -1,0 +1,110 @@
+<?php
+
+/**
+ * @file
+ * Tests that an http:BL session whitelist only applies to the visitor it was
+ * issued to.
+ */
+
+class HttpblSessionWhitelistTestCase extends BackdropWebTestCase {
+
+  public function setUp() {
+    parent::setUp('httpbl');
+    config_set('httpbl.settings', 'check', HTTPBL_CHECK_ALL);
+    config_set('httpbl.settings', 'cache', HTTPBL_CACHE_DB);
+    config_set('httpbl.settings', 'log', HTTPBL_LOG_MIN);
+  }
+
+  /**
+   * Stand in for a session that has passed the challenge from $ip.
+   */
+  protected function grantWhitelist($ip, $lifetime = 10800) {
+    $_SESSION['httpbl_status'] = 'white';
+    $_SESSION['httpbl_white_ip'] = $ip;
+    $_SESSION['httpbl_white_expire'] = REQUEST_TIME + $lifetime;
+  }
+
+  /**
+   * The visitor who passed the challenge still gets through.
+   */
+  public function testWhitelistAppliesToTheIssuedAddress() {
+    $this->grantWhitelist('203.0.113.10');
+    $this->assertTrue(_httpbl_whitelisted('203.0.113.10'), 'The address the whitelist was issued for is whitelisted.');
+  }
+
+  /**
+   * The same cookie presented from another address must not work.
+   */
+  public function testWhitelistDoesNotTransferToAnotherAddress() {
+    $this->grantWhitelist('203.0.113.10');
+    $this->assertFalse(_httpbl_whitelisted('198.51.100.20'), 'A whitelist issued for one address does not apply to another.');
+    $this->assertTrue(empty($_SESSION['httpbl_status']), 'A whitelist used from another address is revoked.');
+  }
+
+  /**
+   * A blacklisted host must not be able to reuse a harvested whitelist.
+   */
+  public function testWhitelistDoesNotOverrideABlacklistedAddress() {
+    $blacklisted = '198.51.100.30';
+    db_merge('httpbl')
+      ->key(array('hostname' => $blacklisted))
+      ->fields(array('status' => HTTPBL_LIST_BLACK, 'expire' => REQUEST_TIME + 86400))
+      ->execute();
+
+    $this->grantWhitelist('203.0.113.10');
+    $this->assertFalse(_httpbl_whitelisted($blacklisted), 'A harvested whitelist does not clear a blacklisted address.');
+    $this->assertEqual(_httpbl_cache_get($blacklisted), HTTPBL_LIST_BLACK, 'The blacklisted address is still blacklisted in the cache.');
+  }
+
+  /**
+   * A whitelist must not last forever.
+   */
+  public function testWhitelistExpires() {
+    $this->grantWhitelist('203.0.113.10', -1);
+    $this->assertFalse(_httpbl_whitelisted('203.0.113.10'), 'An expired whitelist no longer applies.');
+    $this->assertTrue(empty($_SESSION['httpbl_status']), 'An expired whitelist is revoked.');
+  }
+
+  /**
+   * A session that never passed the challenge is not whitelisted.
+   */
+  public function testUnwhitelistedSessionIsNotWhitelisted() {
+    unset($_SESSION['httpbl_status'], $_SESSION['httpbl_white_ip'], $_SESSION['httpbl_white_expire']);
+    $this->assertFalse(_httpbl_whitelisted('203.0.113.10'), 'A session with no whitelist is not whitelisted.');
+  }
+
+  /**
+   * Passing the challenge over HTTP must record what the whitelist covers.
+   */
+  public function testChallengeRecordsTheAddressAndExpiry() {
+    db_truncate('httpbl')->execute();
+    $this->backdropGet('');
+    $ip = db_query('SELECT hostname FROM {httpbl}')->fetchField();
+    $this->assertTrue(!empty($ip), 'The module recorded an entry for the test browser address.');
+
+    db_merge('httpbl')
+      ->key(array('hostname' => $ip))
+      ->fields(array('status' => HTTPBL_LIST_GREY, 'expire' => REQUEST_TIME + 86400))
+      ->execute();
+    config_set('httpbl.settings', 'safe_offset', 10800);
+
+    // This relies on blocked_ips table which is no longer in core.
+    // See ip_blocking contrib module.
+    // $this->backdropGet('');
+    // $this->assertResponse(403, 'A greylisted visitor is blocked before passing the challenge.');
+
+    $this->backdropGet('httpbl/whitelist');
+    $this->assertResponse(200, 'A greylisted visitor can reach the challenge form.');
+    $this->backdropPost(NULL, array('reason' => 'I am a person'), t('Whitelist request'));
+
+    $this->backdropGet('');
+    $this->assertResponse(200, 'The visitor who passed the challenge is let through.');
+
+    // The session Backdrop stored for this visitor has to say what the whitelist
+    // covers, otherwise it could not be scoped to them.
+    $session = db_query('SELECT session FROM {sessions} WHERE hostname = :ip ORDER BY timestamp DESC', array(':ip' => $ip))->fetchField();
+    $this->assertTrue(!empty($session), 'A session was stored for the whitelisted visitor.');
+    $this->assertTrue(strpos($session, 'httpbl_white_ip') !== FALSE, 'The stored session records the address the whitelist was issued for.');
+    $this->assertTrue(strpos($session, 'httpbl_white_expire') !== FALSE, 'The stored session records when the whitelist expires.');
+  }
+}

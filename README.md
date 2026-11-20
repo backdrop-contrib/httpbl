@@ -100,6 +100,8 @@ BUT BE CAREFUL! Use at least two browsers (two machines is better) and always ke
 
 When you're done testing, put the code back the way you found it and dial back the logging at least to the second level (positive hits only)
 
+A limitation to be aware of:  http:BL answers DNS lookups for IPv4 addresses only, so visitors arriving over IPv6 cannot be looked up and are always treated as safe.  On a dual-stack site this module therefore offers no protection against traffic that reaches you over IPv6, and nothing in the module can change that, because the data does not exist upstream.  If that matters to you, either block or rate-limit IPv6 traffic ahead of Backdrop, or serve the site over IPv4 only.
+
 One other thing: I've found sometimes that Project Honeypot may be down for brief periods (for maintenance or other reasons that they don't share) and not returning positive hits on IPs I know are bad.  This has burned me a couple of times, making me think I broke something.  But I resisted the urge to panic or make unnecessary changes, and tried again later and got the expected results.
 
 However, this brings up an interesting point that's relevant to considering how long you choose to cache white-listed visitors. It may be tempting to cache them for a long time so that they don't have to be re-checked as often, but it's probably best to keep them cached for shorter time periods, on the off-chance that some of them are actually bad IPs that slipped through while Project Honeypot not reporting them.
